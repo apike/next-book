@@ -32,6 +32,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
 
   // UI state
   const [activeTab, setActiveTab] = useState<'vote' | 'add-books' | 'results' | 'activity'>('vote');
+  const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   
   // Refs
   const bookTitleInputRef = useRef<HTMLInputElement>(null);
@@ -221,7 +222,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
   return (
     <main className="pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-card-border">
+      <header className="border-b border-card-border">
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-xl font-bold truncate font-serif">
@@ -462,7 +463,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
                               </div>
                               {canDeleteBook(book.id) && (
                                 <button
-                                  onClick={() => handleDeleteBook(book.id)}
+                                  onClick={() => setBookToDelete(book.id)}
                                   className="flex-shrink-0 p-2 rounded-lg text-muted hover:text-danger hover:bg-danger/10 active:scale-95"
                                   title="Remove book"
                                 >
@@ -505,6 +506,39 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
           </>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {bookToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setBookToDelete(null)}
+          />
+          <div className="relative bg-card rounded-2xl p-6 shadow-xl border border-card-border max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-2">Remove book?</h3>
+            <p className="text-sm text-muted mb-6">
+              Are you sure you want to remove &ldquo;{poll?.books.find(b => b.id === bookToDelete)?.title}&rdquo; from the poll?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBookToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-card-border text-foreground font-medium text-sm hover:bg-card-border/80"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteBook(bookToDelete);
+                  setBookToDelete(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-danger text-white font-medium text-sm hover:bg-danger/90"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

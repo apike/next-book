@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Libre_Baskerville, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
@@ -23,6 +23,13 @@ export const metadata: Metadata = {
   description: "A simple voting app for your book club",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,11 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${libreBaskerville.variable} ${sourceSans.variable}`}>
-      <body className="h-screen overflow-hidden antialiased font-sans flex flex-col">
-        <div className="flex-1 flex flex-col overflow-auto">
+      <body className="min-h-screen antialiased font-sans flex flex-col pt-safe">
+        <div className="flex-1 flex flex-col">
           {children}
         </div>
-        <footer className="py-3 text-center text-xs text-muted">
+        <footer className="py-3 pb-safe text-center text-xs text-muted">
           <a 
             href="/"
             className="text-primary hover:underline"

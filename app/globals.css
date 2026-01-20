@@ -83,3 +83,16 @@ body {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Safe area utilities for iOS notch/dynamic island */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.top-safe {
+  top: env(safe-area-inset-top);
+}
