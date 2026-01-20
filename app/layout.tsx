@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Libre_Baskerville, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
@@ -29,8 +30,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${libreBaskerville.variable} ${sourceSans.variable}`}>
-      <body className="min-h-screen antialiased font-sans flex flex-col">
-        <div className="flex-1 flex flex-col">
+      <body className="h-screen overflow-hidden antialiased font-sans flex flex-col">
+        <div className="flex-1 flex flex-col overflow-auto">
           {children}
         </div>
         <footer className="py-3 text-center text-xs text-muted">
@@ -51,6 +52,11 @@ export default function RootLayout({
           </a>
           .
         </footer>
+        <Script
+          src="https://cdn.usefathom.com/script.js"
+          data-site="MJGVSEYT"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

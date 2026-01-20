@@ -88,6 +88,7 @@ export default function Home() {
               value={pollName}
               onChange={(e) => setPollName(e.target.value)}
               placeholder="e.g., January 2026 Book Club"
+              autoComplete="off"
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-card-border focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted/60"
               disabled={isCreating}
             />
@@ -129,31 +130,15 @@ export default function Home() {
         </form>
 
         {/* Features */}
-        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Add books</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Drag to rank</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Share link</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Fair voting</span>
-          </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-xs text-muted">
+          {['Add books', 'Share with your club', 'Drag to rank', 'Fair voting', 'Cheap and cheerful'].map((feature) => (
+            <span key={feature} className="inline-flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              {feature}
+            </span>
+          ))}
         </div>
       </div>
     </main>
