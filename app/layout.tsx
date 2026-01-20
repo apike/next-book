@@ -34,7 +34,13 @@ export default function RootLayout({
           {children}
         </div>
         <footer className="py-3 text-center text-xs text-muted">
-          A tiny experiment by{' '}
+          <a 
+            href="/"
+            className="text-primary hover:underline"
+          >
+            Book Club Voter
+          </a>
+          {' '}is a tiny experiment by{' '}
           <a 
             href="https://allenpike.com" 
             target="_blank" 

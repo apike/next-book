@@ -94,10 +94,10 @@ export default function PollPage() {
       setBookAuthor('');
       setIsAddingBook(false);
       // Focus back on the title field for easy adding of multiple books
-      // Use requestAnimationFrame to ensure focus happens after React re-renders
-      requestAnimationFrame(() => {
+      // Use setTimeout to ensure the DOM has fully updated after React re-render
+      setTimeout(() => {
         bookTitleInputRef.current?.focus();
-      });
+      }, 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add book');
       setIsAddingBook(false);
@@ -135,8 +135,8 @@ export default function PollPage() {
 
   const handleSubmitVote = async () => {
     if (!poll || !userName.trim()) return;
-    if (rankedBookIds.length !== poll.books.length) {
-      setError('Please rank all books before submitting');
+    if (rankedBookIds.length === 0) {
+      setError('Please rank at least one book before submitting');
       return;
     }
 
@@ -168,7 +168,7 @@ export default function PollPage() {
   };
 
   const canSubmitVote = poll && 
-    rankedBookIds.length === poll.books.length && 
+    rankedBookIds.length > 0 && 
     poll.books.length > 0 &&
     !hasCompletedVoting;
 
@@ -354,10 +354,9 @@ export default function PollPage() {
                 {/* Submit vote button */}
                 {!hasCompletedVoting && poll.books.length > 0 && (
                   <div className="pt-4">
-                    {rankedBookIds.length < poll.books.length && (
+                    {rankedBookIds.length === 0 && (
                       <p className="text-sm text-muted text-center mb-3">
-                        Rank all {poll.books.length} book{poll.books.length !== 1 ? 's' : ''} to submit your vote
-                        ({poll.books.length - rankedBookIds.length} remaining)
+                        Rank at least one book to submit your vote.
                       </p>
                     )}
                     <button
@@ -365,7 +364,7 @@ export default function PollPage() {
                       disabled={!canSubmitVote || isSubmitting}
                       className="w-full py-4 rounded-xl bg-success text-white font-semibold text-lg hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-success/25"
                     >
-                      {isSubmitting ? 'Submitting...' : 'Voting Complete!'}
+                      {isSubmitting ? 'Submitting...' : 'Lock my vote'}
                     </button>
                   </div>
                 )}

@@ -1,10 +1,50 @@
 'use client';
 
-import { Poll, RankedResult } from '@/lib/types';
+import { useState } from 'react';
+import { Poll, RankedResult, Voter } from '@/lib/types';
 import { calculateMinimaxResults } from '@/lib/minimax';
 
 interface ResultsPanelProps {
   poll: Poll;
+}
+
+function VoterBadge({ voter, poll }: { voter: Voter; poll: Poll }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  const rankings = voter.rankings.map((bookId, index) => {
+    const book = poll.books.find(b => b.id === bookId);
+    return { rank: index + 1, title: book?.title ?? 'Unknown book' };
+  });
+
+  return (
+    <div className="relative">
+      <span
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-success/10 text-success text-sm cursor-help"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+        {voter.name}
+      </span>
+      
+      {showTooltip && rankings.length > 0 && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50">
+          <div className="bg-foreground text-background text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+            <div className="font-semibold mb-1">{voter.name}&apos;s Rankings:</div>
+            {rankings.map(({ rank, title }) => (
+              <div key={rank} className="flex gap-2">
+                <span className="text-muted-foreground">{rank}.</span>
+                <span>{title}</span>
+              </div>
+            ))}
+          </div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getRankEmoji(rank: number): string {
@@ -95,15 +135,7 @@ export function ResultsPanel({ poll }: ResultsPanelProps) {
         <h4 className="text-sm font-semibold mb-3">Completed Voting</h4>
         <div className="flex flex-wrap gap-2">
           {completedVoters.map((voter) => (
-            <span
-              key={voter.name}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-success/10 text-success text-sm"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              {voter.name}
-            </span>
+            <VoterBadge key={voter.name} voter={voter} poll={poll} />
           ))}
         </div>
       </div>

@@ -45,10 +45,10 @@ export async function POST(
       }
     }
 
-    // Check if all books are ranked
-    if (body.rankings.length !== poll.books.length) {
+    // Check if at least one book is ranked
+    if (body.rankings.length === 0) {
       return NextResponse.json(
-        { error: 'You must rank all books before submitting' },
+        { error: 'Please rank at least one book before submitting' },
         { status: 400 }
       );
     }

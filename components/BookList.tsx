@@ -120,6 +120,7 @@ export function BookList({
   disabled,
 }: BookListProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const [isOverRanked, setIsOverRanked] = useState(false);
   const [isOverUnranked, setIsOverUnranked] = useState(false);
 
@@ -154,43 +155,54 @@ export function BookList({
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    setIsOverRanked(over?.id === 'ranked-droppable' || rankedBookIds.includes(over?.id as string));
-    setIsOverUnranked(over?.id === 'unranked-droppable' || unrankedBookIds.includes(over?.id as string));
+    const { active, over } = event;
+    const isActiveDragUnranked = unrankedBookIds.includes(active.id as string);
+    
+    setOverId(over?.id as string | null);
+    
+    // If dragging from unranked, always show as "over ranked" since it will always go there
+    if (isActiveDragUnranked) {
+      setIsOverRanked(true);
+      setIsOverUnranked(false);
+    } else {
+      setIsOverRanked(over?.id === 'ranked-droppable' || rankedBookIds.includes(over?.id as string));
+      setIsOverUnranked(over?.id === 'unranked-droppable' || unrankedBookIds.includes(over?.id as string));
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    setOverId(null);
     setIsOverRanked(false);
     setIsOverUnranked(false);
 
-    if (!over) return;
-
     const activeIdStr = active.id as string;
-    const overIdStr = over.id as string;
-    
     const isActiveRanked = rankedBookIds.includes(activeIdStr);
     const isActiveUnranked = unrankedBookIds.includes(activeIdStr);
-    
-    // Determine where we're dropping
-    const isDroppingOnRankedArea = overIdStr === 'ranked-droppable' || rankedBookIds.includes(overIdStr);
-    const isDroppingOnUnrankedArea = overIdStr === 'unranked-droppable' || unrankedBookIds.includes(overIdStr);
 
-    // Moving from unranked to ranked
-    if (isActiveUnranked && isDroppingOnRankedArea) {
-      if (overIdStr === 'ranked-droppable') {
-        // Dropped on the empty area - add to end
-        onRankingsChange([...rankedBookIds, activeIdStr]);
-      } else {
+    // If dragging from unranked, ALWAYS add to rankings
+    // (unranked items can't be reordered - they just get ranked)
+    if (isActiveUnranked) {
+      if (over && rankedBookIds.includes(over.id as string)) {
         // Dropped on a specific ranked item - insert at that position
-        const overIndex = rankedBookIds.indexOf(overIdStr);
+        const overIndex = rankedBookIds.indexOf(over.id as string);
         const newRankings = [...rankedBookIds];
         newRankings.splice(overIndex, 0, activeIdStr);
         onRankingsChange(newRankings);
+      } else {
+        // Dropped anywhere else (including unranked area) - add to end of rankings
+        onRankingsChange([...rankedBookIds, activeIdStr]);
       }
       return;
     }
+
+    // From here, we're dealing with ranked items
+    if (!over) return;
+
+    const overIdStr = over.id as string;
+    const isDroppingOnUnrankedArea = overIdStr === 'unranked-droppable' || unrankedBookIds.includes(overIdStr);
+    const isDroppingOnRankedArea = overIdStr === 'ranked-droppable' || rankedBookIds.includes(overIdStr);
 
     // Moving from ranked to unranked
     if (isActiveRanked && isDroppingOnUnrankedArea) {
@@ -213,6 +225,26 @@ export function BookList({
   const activeBook = activeId ? books.find(b => b.id === activeId) : null;
   const isActiveRanked = activeId ? rankedBookIds.includes(activeId) : false;
 
+  // Compute preview of ranked order during drag for live rank updates
+  const previewRankedIds = (() => {
+    if (!activeId || !overId) return rankedBookIds;
+    
+    const isActiveDragRanked = rankedBookIds.includes(activeId);
+    const isOverRankedItem = rankedBookIds.includes(overId);
+    
+    // Only show preview when reordering within ranked section
+    if (isActiveDragRanked && isOverRankedItem && activeId !== overId) {
+      const oldIndex = rankedBookIds.indexOf(activeId);
+      const newIndex = rankedBookIds.indexOf(overId);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        return arrayMove(rankedBookIds, oldIndex, newIndex);
+      }
+    }
+    
+    return rankedBookIds;
+  })();
+
+
   return (
     <DndContext
       sensors={sensors}
@@ -234,15 +266,19 @@ export function BookList({
             <DroppableArea id="ranked-droppable" isOver={isOverRanked && !isActiveRanked}>
               {rankedBooks.length > 0 ? (
                 <div>
-                  {rankedBooks.map((book, index) => (
-                    <SortableBook
-                      key={book.id}
-                      book={book}
-                      rank={index + 1}
-                      disabled={disabled}
-                      showRank={true}
-                    />
-                  ))}
+                  {rankedBooks.map((book) => {
+                    // Use preview order for rank number during drag
+                    const previewRank = previewRankedIds.indexOf(book.id) + 1;
+                    return (
+                      <SortableBook
+                        key={book.id}
+                        book={book}
+                        rank={previewRank}
+                        disabled={disabled}
+                        showRank={true}
+                      />
+                    );
+                  })}
                 </div>
               ) : (
                 <div className={`
@@ -313,7 +349,7 @@ export function BookList({
         {activeBook ? (
           <BookCard
             book={activeBook}
-            rank={isActiveRanked ? rankedBookIds.indexOf(activeBook.id) + 1 : undefined}
+            rank={isActiveRanked ? previewRankedIds.indexOf(activeBook.id) + 1 : undefined}
             canDelete={false}
             isDragging
           />

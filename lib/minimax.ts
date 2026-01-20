@@ -37,6 +37,7 @@ export function calculateMinimaxResults(
   // Count preferences from completed voters
   for (const voter of completedVoters) {
     const rankings = voter.rankings;
+    const rankedSet = new Set(rankings);
     
     // For each pair of books in the voter's ranking
     for (let i = 0; i < rankings.length; i++) {
@@ -50,6 +51,23 @@ export function calculateMinimaxResults(
             lessPreferred,
             pairwise.get(preferred)!.get(lessPreferred)! + 1
           );
+        }
+      }
+    }
+    
+    // All ranked books are preferred over all unranked books
+    // This ensures that voting for a book as #1 (even without ranking others)
+    // counts as preferring that book over all unranked books
+    for (const rankedId of rankings) {
+      for (const bookId of bookIds) {
+        if (!rankedSet.has(bookId)) {
+          // rankedId is preferred over bookId (which is unranked by this voter)
+          if (pairwise.has(rankedId) && pairwise.get(rankedId)!.has(bookId)) {
+            pairwise.get(rankedId)!.set(
+              bookId,
+              pairwise.get(rankedId)!.get(bookId)! + 1
+            );
+          }
         }
       }
     }
