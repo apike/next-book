@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Book Club Poll
 
-## Getting Started
+A simple, elegant voting app for book clubs. Create a poll, add books, rank your preferences, and see results using the fair Minimax Condorcet voting method.
 
-First, run the development server:
+## Features
+
+- **Create polls** with a secret shareable URL
+- **Add books** with title and author
+- **Drag-and-drop ranking** with touch support for mobile
+- **Minimax Condorcet voting** - a fair ranked-choice algorithm
+- **Activity log** showing who added what and when
+- **Results** visible after completing your vote
+
+## Tech Stack
+
+- **Next.js 14** (App Router) with TypeScript
+- **Tailwind CSS** for styling
+- **dnd-kit** for drag-and-drop
+- **Vercel KV** (Redis) for persistence
+
+## Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app uses an in-memory store for local development. Data persists only while the dev server is running.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push this repo to GitHub
+2. Import the project in [Vercel](https://vercel.com)
+3. Add **Vercel KV** from the Storage tab:
+   - Go to your project dashboard → Storage → Create Database → KV
+   - This automatically adds the required environment variables
+4. Deploy!
 
-## Learn More
+### Environment Variables (automatically set by Vercel KV)
 
-To learn more about Next.js, take a look at the following resources:
+- `KV_REST_API_URL` - Vercel KV REST API URL
+- `KV_REST_API_TOKEN` - Vercel KV API token
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How It Works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Voting Algorithm: Minimax Condorcet
 
-## Deploy on Vercel
+The app uses the Minimax Condorcet method to determine the winning book:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Each pair of books is compared head-to-head based on all voters' rankings
+2. For each book, we find its "worst defeat" - the largest margin by which it loses to any other book
+3. Books are ranked by who has the smallest worst defeat
+4. A book that beats all others (Condorcet winner) will have a worst defeat of 0 or less
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This method ensures the winner is the book with the broadest support, avoiding issues with simple plurality voting.
+
+## Usage
+
+1. **Create a poll** - Enter a name and get a secret URL
+2. **Share the URL** - Anyone with the link can participate
+3. **Add books** - Enter your name, then add book suggestions
+4. **Rank your preferences** - Drag books from "Unranked" to "Your Rankings"
+5. **Submit your vote** - Click "Voting Complete!" when done ranking all books
+6. **See results** - After voting, view the Condorcet-ranked results
+
+## License
+
+MIT
