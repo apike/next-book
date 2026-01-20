@@ -1,70 +1,44 @@
 # Book Club Poll
 
-A simple, elegant voting app for book clubs. Create a poll, add books, rank your preferences, and see results using the fair Minimax Condorcet voting method.
+A voting app for book clubs. Create a poll, add books, rank your preferences, and see results using Minimax Condorcet voting.
+
+This started as an experiment about how complex an app Claude Opus 4.5 could one-shot with thorough enough specification and guidance, and has had UX iteration from user testing from there.
 
 ## Features
 
-- **Create polls** with a secret shareable URL
-- **Add books** with title and author
-- **Drag-and-drop ranking** with touch support for mobile
-- **Minimax Condorcet voting** - a fair ranked-choice algorithm
-- **Activity log** showing who added what and when
-- **Results** visible after completing your vote
+- **Shareable polls** with a secret URL
+- **Drag-and-drop ranking** (works on mobile)
+- **Fair ranked-choice voting** via Minimax Condorcet
+- **Activity log** showing who added what
 
 ## Tech Stack
 
-- **Next.js 14** (App Router) with TypeScript
-- **Tailwind CSS** for styling
-- **dnd-kit** for drag-and-drop
-- **Vercel KV** (Redis) for persistence
+- Next.js 16 (App Router), TypeScript, Tailwind CSS
+- dnd-kit for drag-and-drop
+- Upstash Redis for persistence
 
-## Local Development
+## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
 ```
 
-The app uses an in-memory store for local development. Data persists only while the dev server is running.
+Requires an Upstash Redis database. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in your environment.
 
-## Deployment to Vercel
+## Deployment
 
-1. Push this repo to GitHub
-2. Import the project in [Vercel](https://vercel.com)
-3. Add **Vercel KV** from the Storage tab:
-   - Go to your project dashboard → Storage → Create Database → KV
-   - This automatically adds the required environment variables
-4. Deploy!
+Deploy to Vercel and add an [Upstash Redis](https://upstash.com/) database. The Upstash integration will set the required environment variables automatically.
 
-### Environment Variables (automatically set by Vercel KV)
+## How Voting Works
 
-- `KV_REST_API_URL` - Vercel KV REST API URL
-- `KV_REST_API_TOKEN` - Vercel KV API token
+The app uses Minimax Condorcet to find the book with the broadest support:
 
-## How It Works
+1. Each pair of books is compared head-to-head across all rankings
+2. Each book's "worst defeat" is its largest loss margin against any other book
+3. The winner is the book with the smallest worst defeat
 
-### Voting Algorithm: Minimax Condorcet
-
-The app uses the Minimax Condorcet method to determine the winning book:
-
-1. Each pair of books is compared head-to-head based on all voters' rankings
-2. For each book, we find its "worst defeat" - the largest margin by which it loses to any other book
-3. Books are ranked by who has the smallest worst defeat
-4. A book that beats all others (Condorcet winner) will have a worst defeat of 0 or less
-
-This method ensures the winner is the book with the broadest support, avoiding issues with simple plurality voting.
-
-## Usage
-
-1. **Create a poll** - Enter a name and get a secret URL
-2. **Share the URL** - Anyone with the link can participate
-3. **Add books** - Enter your name, then add book suggestions
-4. **Rank your preferences** - Drag books from "Unranked" to "Your Rankings"
-5. **Submit your vote** - Click "Voting Complete!" when done ranking all books
-6. **See results** - After voting, view the Condorcet-ranked results
+A Condorcet winner (one that beats all others head-to-head) will always win.
 
 ## License
 
