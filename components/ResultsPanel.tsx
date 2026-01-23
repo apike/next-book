@@ -6,31 +6,58 @@ import { calculateMinimaxResults } from '@/lib/minimax';
 
 interface ResultsPanelProps {
   poll: Poll;
+  pollId: string;
+  onPollUpdate: (poll: Poll) => void;
+  actorName: string;
 }
 
-function VoterBadge({ voter, poll }: { voter: Voter; poll: Poll }) {
+interface VoterBadgeProps {
+  voter: Voter;
+  poll: Poll;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function VoterBadge({ voter, poll, isSelected, onClick }: VoterBadgeProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const isExcluded = voter.excluded ?? false;
   
   const rankings = voter.rankings.map((bookId, index) => {
     const book = poll.books.find(b => b.id === bookId);
     return { rank: index + 1, title: book?.title ?? 'Unknown book' };
   });
-
+  
   return (
     <div className="relative">
-      <span
+      <button
+        onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-success/10 text-success text-sm cursor-help"
+        className={`
+          inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm transition-colors
+          ${isExcluded 
+            ? 'bg-muted/20 text-muted line-through' 
+            : 'bg-success/10 text-success'
+          }
+          ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}
+          hover:opacity-80
+        `}
       >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
+        {isExcluded ? (
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
         {voter.name}
-      </span>
+      </button>
       
-      {showTooltip && rankings.length > 0 && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50">
+      {/* Hover tooltip */}
+      {showTooltip && !isSelected && rankings.length > 0 && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
           <div className="bg-foreground text-background text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
             <div className="font-semibold mb-1">{voter.name}&apos;s Rankings:</div>
             {rankings.map(({ rank, title }) => (
@@ -43,6 +70,56 @@ function VoterBadge({ voter, poll }: { voter: Voter; poll: Poll }) {
           <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
         </div>
       )}
+    </div>
+  );
+}
+
+interface VoterDetailsPanelProps {
+  voter: Voter;
+  poll: Poll;
+  pollId: string;
+  onToggleExclude: () => Promise<void>;
+  isLoading: boolean;
+}
+
+function VoterDetailsPanel({ voter, poll, onToggleExclude, isLoading }: VoterDetailsPanelProps) {
+  const rankings = voter.rankings.map((bookId, index) => {
+    const book = poll.books.find(b => b.id === bookId);
+    return { rank: index + 1, title: book?.title ?? 'Unknown book' };
+  });
+  
+  const isExcluded = voter.excluded ?? false;
+
+  return (
+    <div className="mt-3 p-4 bg-background rounded-xl border border-card-border">
+      <div className="font-semibold mb-2">{voter.name}&apos;s Rankings:</div>
+      <div className="space-y-1 mb-4">
+        {rankings.map(({ rank, title }) => (
+          <div key={rank} className="flex gap-2 text-sm">
+            <span className="text-muted w-5">{rank}.</span>
+            <span>{title}</span>
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={onToggleExclude}
+        disabled={isLoading}
+        className={`
+          w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors
+          ${isExcluded 
+            ? 'bg-success/10 text-success hover:bg-success/20' 
+            : 'bg-danger/10 text-danger hover:bg-danger/20'
+          }
+          disabled:opacity-50 disabled:cursor-not-allowed
+        `}
+      >
+        {isLoading 
+          ? 'Updating...' 
+          : isExcluded 
+            ? 'Include in results' 
+            : 'Exclude from results'
+        }
+      </button>
     </div>
   );
 }
@@ -67,9 +144,45 @@ function getScoreExplanation(result: RankedResult): string {
   return `Worst loss: ${result.worstDefeat} vote${result.worstDefeat !== 1 ? 's' : ''}`;
 }
 
-export function ResultsPanel({ poll }: ResultsPanelProps) {
+export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsPanelProps) {
+  const [selectedVoterSessionId, setSelectedVoterSessionId] = useState<string | null>(null);
+  const [isExcluding, setIsExcluding] = useState(false);
+  
   const completedVoters = poll.voters.filter(v => v.completedAt);
+  const activeVoters = completedVoters.filter(v => !v.excluded);
   const results = calculateMinimaxResults(poll.books, completedVoters);
+  
+  const selectedVoter = selectedVoterSessionId 
+    ? completedVoters.find(v => v.sessionId === selectedVoterSessionId) 
+    : null;
+
+  const handleToggleExclude = async () => {
+    if (!selectedVoter) return;
+    
+    setIsExcluding(true);
+    try {
+      const response = await fetch(`/api/polls/${pollId}/exclude`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voterSessionId: selectedVoter.sessionId,
+          actorName,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to toggle exclusion');
+      }
+
+      const updatedPoll = await response.json();
+      onPollUpdate(updatedPoll);
+    } catch (error) {
+      console.error('Error toggling exclusion:', error);
+    } finally {
+      setIsExcluding(false);
+    }
+  };
 
   if (completedVoters.length === 0) {
     return (
@@ -79,65 +192,97 @@ export function ResultsPanel({ poll }: ResultsPanelProps) {
     );
   }
 
+  // Check if all votes are excluded
+  const allExcluded = activeVoters.length === 0 && completedVoters.length > 0;
+
   return (
     <div className="space-y-6">
       {/* Vote count */}
       <div className="text-center">
         <p className="text-sm text-muted">
-          Based on <span className="font-semibold text-foreground">{completedVoters.length}</span> completed vote{completedVoters.length !== 1 ? 's' : ''}
+          Based on <span className="font-semibold text-foreground">{activeVoters.length}</span> of {completedVoters.length} vote{completedVoters.length !== 1 ? 's' : ''}
+          {activeVoters.length !== completedVoters.length && (
+            <span className="text-muted"> ({completedVoters.length - activeVoters.length} excluded)</span>
+          )}
         </p>
       </div>
 
       {/* Results list */}
-      <div className="space-y-3">
-        {results.map((result) => (
-          <div
-            key={result.book.id}
-            className={`
-              p-4 rounded-xl border
-              ${result.rank === 1 
-                ? 'bg-secondary/10 border-secondary/30' 
-                : 'bg-card border-card-border'
-              }
-            `}
-          >
-            <div className="flex items-center gap-3">
-              {/* Rank */}
-              <div className={`
-                flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold
+      {allExcluded ? (
+        <div className="text-center py-8 text-muted">
+          <p>At least one vote needs to be included to show results? 🙃</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {results.map((result) => (
+            <div
+              key={result.book.id}
+              className={`
+                p-4 rounded-xl border
                 ${result.rank === 1 
-                  ? 'bg-secondary text-foreground' 
-                  : 'bg-card-border text-muted'
+                  ? 'bg-secondary/10 border-secondary/30' 
+                  : 'bg-card border-card-border'
                 }
-              `}>
-                {getRankEmoji(result.rank) || `#${result.rank}`}
+              `}
+            >
+              <div className="flex items-center gap-3">
+                {/* Rank */}
+                <div className={`
+                  flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold
+                  ${result.rank === 1 
+                    ? 'bg-secondary text-foreground' 
+                    : 'bg-card-border text-muted'
+                  }
+                `}>
+                  {getRankEmoji(result.rank) || `#${result.rank}`}
+                </div>
+
+                {/* Book info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold truncate font-serif">
+                    {result.book.title}
+                  </h3>
+                  <p className="text-sm text-muted truncate">by {result.book.author}</p>
+                </div>
               </div>
 
-              {/* Book info */}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold truncate font-serif">
-                  {result.book.title}
-                </h3>
-                <p className="text-sm text-muted truncate">by {result.book.author}</p>
-              </div>
+              {/* Score explanation */}
+              <p className="mt-2 text-xs text-muted pl-13">
+                {getScoreExplanation(result)}
+              </p>
             </div>
-
-            {/* Score explanation */}
-            <p className="mt-2 text-xs text-muted pl-13">
-              {getScoreExplanation(result)}
-            </p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Completed voters */}
       <div className="pt-4 border-t border-card-border">
         <h4 className="text-sm font-semibold mb-3">Completed Voting</h4>
+        <p className="text-xs text-muted mb-3">Tap a name to see their votes or exclude them from results.</p>
         <div className="flex flex-wrap gap-2">
           {completedVoters.map((voter) => (
-            <VoterBadge key={voter.name} voter={voter} poll={poll} />
+            <VoterBadge 
+              key={voter.sessionId} 
+              voter={voter} 
+              poll={poll}
+              isSelected={selectedVoterSessionId === voter.sessionId}
+              onClick={() => setSelectedVoterSessionId(
+                selectedVoterSessionId === voter.sessionId ? null : voter.sessionId
+              )}
+            />
           ))}
         </div>
+        
+        {/* Selected voter details */}
+        {selectedVoter && (
+          <VoterDetailsPanel
+            voter={selectedVoter}
+            poll={poll}
+            pollId={pollId}
+            onToggleExclude={handleToggleExclude}
+            isLoading={isExcluding}
+          />
+        )}
       </div>
     </div>
   );

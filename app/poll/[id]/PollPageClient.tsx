@@ -198,7 +198,7 @@ export default function PollPageClient({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <svg className="animate-spin h-8 w-8 mx-auto text-primary" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -212,7 +212,7 @@ export default function PollPageClient({
 
   if (error && !poll) {
     return (
-      <div className="flex-1 flex items-center justify-center px-4">
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-danger/10 flex items-center justify-center">
             <svg className="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,12 +232,12 @@ export default function PollPageClient({
   if (!poll) return null;
 
   return (
-    <main className="pb-24">
+    <main className="pb-6">
       {/* Header */}
       <header className="border-b border-card-border">
         <div className="max-w-lg mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-xl font-bold truncate font-serif">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-xl font-bold font-serif">
               {poll.name}
             </h1>
             <CopyLinkButton />
@@ -505,7 +505,12 @@ export default function PollPageClient({
 
             {activeTab === 'results' && hasCompletedVoting && (
               <div className="bg-card rounded-2xl p-4 border border-card-border">
-                <ResultsPanel poll={poll} />
+                <ResultsPanel 
+                  poll={poll} 
+                  pollId={pollId}
+                  onPollUpdate={setPoll}
+                  actorName={userName}
+                />
               </div>
             )}
 

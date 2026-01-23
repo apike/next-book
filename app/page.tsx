@@ -40,7 +40,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex-1 flex flex-col items-center px-4 pt-6 pb-2">
+    <main className="flex flex-col items-center px-4 pt-6 pb-6">
       {/* Background decoration */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />

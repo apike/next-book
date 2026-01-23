@@ -31,7 +31,7 @@ export async function getCurrentSession(): Promise<Session | null> {
 /**
  * Gets the session, creating the Redis record if it doesn't exist.
  * The cookie must already exist (set by middleware).
- * Returns the session object, or null if no cookie.
+ * Returns the session object, or null if no cookie or on error.
  */
 export async function getOrCreateSession(): Promise<Session | null> {
   const sessionId = await getSessionId();
@@ -40,19 +40,30 @@ export async function getOrCreateSession(): Promise<Session | null> {
     return null;
   }
 
-  let session = await getSession(sessionId);
+  try {
+    let session = await getSession(sessionId);
 
-  if (!session) {
-    // Session cookie exists but Redis data doesn't - create it
-    session = {
+    if (!session) {
+      // Session cookie exists but Redis data doesn't - create it
+      session = {
+        id: sessionId,
+        name: null,
+        createdAt: Date.now(),
+      };
+      await saveSession(session);
+    }
+
+    return session;
+  } catch (error) {
+    // If Redis fails, return a temporary session object using just the cookie ID
+    // This allows the app to function even if Redis is unavailable
+    console.error('Error accessing session from Redis:', error);
+    return {
       id: sessionId,
       name: null,
       createdAt: Date.now(),
     };
-    await saveSession(session);
   }
-
-  return session;
 }
 
 /**

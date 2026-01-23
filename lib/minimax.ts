@@ -13,7 +13,10 @@ export function calculateMinimaxResults(
   books: Book[],
   completedVoters: Voter[]
 ): RankedResult[] {
-  if (books.length === 0 || completedVoters.length === 0) {
+  // Filter out excluded voters
+  const activeVoters = completedVoters.filter(v => !v.excluded);
+  
+  if (books.length === 0 || activeVoters.length === 0) {
     return books.map((book, index) => ({
       book,
       worstDefeat: 0,
@@ -34,8 +37,8 @@ export function calculateMinimaxResults(
     }
   }
   
-  // Count preferences from completed voters
-  for (const voter of completedVoters) {
+  // Count preferences from active (non-excluded) voters
+  for (const voter of activeVoters) {
     const rankings = voter.rankings;
     const rankedSet = new Set(rankings);
     

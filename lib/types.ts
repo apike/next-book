@@ -11,6 +11,7 @@ export interface Voter {
   sessionId: string; // links vote to browser session
   rankings: string[]; // ordered book IDs (1st preference first)
   completedAt?: number; // timestamp when locked in
+  excluded?: boolean; // if true, this vote is excluded from results
 }
 
 export interface Session {
@@ -21,9 +22,9 @@ export interface Session {
 
 export interface Activity {
   timestamp: number;
-  type: 'book_added' | 'book_deleted' | 'voting_complete';
+  type: 'book_added' | 'book_deleted' | 'voting_complete' | 'voter_excluded' | 'voter_included';
   actor: string;
-  detail?: string; // e.g., book title
+  detail?: string; // e.g., book title or voter name
 }
 
 export interface Poll {
@@ -50,6 +51,11 @@ export interface SubmitVoteRequest {
   voterName: string;
   rankings: string[];
   sessionId: string;
+}
+
+export interface ToggleExcludeRequest {
+  voterSessionId: string; // sessionId of the voter to exclude/include
+  actorName: string; // name of the person performing the action
 }
 
 export interface RankedResult {

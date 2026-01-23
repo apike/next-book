@@ -46,12 +46,7 @@ MIT
 
 ## Next Up Todos
 
-- Allow excluding users' votes
-  - This is slightly risky since we have no auth. Propose letting any member soft-delete any member's vote, but also any member can un-soft-delete a vote.
 - Set favicon (right now it shows vercel)
 - Let any user optionally add a passkey so they can return to see results
-- Improve colour scheme on mobile (weird and overly blue)
-- Let longer event titles wrap on mobile (easy for this to get cut off)
-- Footer layout is a bit janky
 - Set an optional deadline to vote
 - Security review (especially XSS/injection)

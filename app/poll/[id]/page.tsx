@@ -9,48 +9,64 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const poll = await getPoll(id);
   
-  if (!poll) {
+  try {
+    const poll = await getPoll(id);
+    
+    if (!poll) {
+      return {
+        title: 'Poll Not Found - Book Club Poll',
+        description: 'This poll could not be found.',
+      };
+    }
+
+    const title = `${poll.name} - Book Club Poll`;
+    const description = `Vote on books for ${poll.name}. A simple voting app for your book club.`;
+
     return {
-      title: 'Poll Not Found - Book Club Poll',
-      description: 'This poll could not be found.',
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching poll for metadata:', error);
+    return {
+      title: 'Book Club Poll',
+      description: 'Vote on books for your book club.',
     };
   }
-
-  const title = `${poll.name} - Book Club Poll`;
-  const description = `Vote on books for ${poll.name}. A simple voting app for your book club.`;
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-    },
-  };
 }
 
 export default async function PollPage({ params }: PageProps) {
   const { id } = await params;
   
   // Get or create session (cookie set by middleware, this creates Redis record if needed)
+  // This now handles Redis errors gracefully
   const session = await getOrCreateSession();
   
   // Fetch poll to check if this session has already voted
-  const poll = await getPoll(id);
+  let poll = null;
+  try {
+    poll = await getPoll(id);
+  } catch (error) {
+    console.error('Error fetching poll:', error);
+    // Poll will be fetched client-side as fallback
+  }
   
   // Session should always exist (middleware sets cookie), but handle edge case
   const sessionId = session?.id ?? '';
   
   // Check if this session has already voted in this poll (must have completedAt set)
-  const existingVoter = session ? poll?.voters.find(v => v.sessionId === session.id && v.completedAt) : null;
+  const existingVoter = session && poll ? poll.voters.find(v => v.sessionId === session.id && v.completedAt) : null;
   const hasVotedInPoll = !!existingVoter;
   
   // Use the name from the existing vote if they voted, otherwise from session

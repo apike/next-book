@@ -37,11 +37,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${libreBaskerville.variable} ${sourceSans.variable}`}>
-      <body className="min-h-screen antialiased font-sans flex flex-col pt-safe">
-        <div className="flex-1 flex flex-col">
-          {children}
-        </div>
-        <footer className="py-3 pb-safe text-center text-xs text-muted">
+      <body className="antialiased font-sans pt-safe">
+        {children}
+        <footer className="pb-4 text-center text-xs text-muted">
           <a 
             href="/"
             className="text-primary hover:underline"
