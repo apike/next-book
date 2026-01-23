@@ -22,7 +22,7 @@ export interface Session {
 
 export interface Activity {
   timestamp: number;
-  type: 'book_added' | 'book_deleted' | 'voting_complete' | 'voter_excluded' | 'voter_included';
+  type: 'book_added' | 'book_deleted' | 'voting_complete' | 'voter_excluded' | 'voter_included' | 'results_peeked';
   actor: string;
   detail?: string; // e.g., book title or voter name
 }

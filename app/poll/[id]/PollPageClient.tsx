@@ -43,6 +43,8 @@ export default function PollPageClient({
   // UI state
   const [activeTab, setActiveTab] = useState<'vote' | 'add-books' | 'results' | 'activity'>('vote');
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
+  const [hasPeekedAtResults, setHasPeekedAtResults] = useState(false);
+  const [isPeeking, setIsPeeking] = useState(false);
   
   // Refs
   const bookTitleInputRef = useRef<HTMLInputElement>(null);
@@ -343,12 +345,11 @@ export default function PollPageClient({
               </button>
               <button
                 onClick={() => setActiveTab('results')}
-                disabled={!hasCompletedVoting}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'results'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted hover:text-foreground'
-                } ${!hasCompletedVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                }`}
               >
                 Results
               </button>
@@ -503,14 +504,49 @@ export default function PollPageClient({
               </div>
             )}
 
-            {activeTab === 'results' && hasCompletedVoting && (
+            {activeTab === 'results' && (
               <div className="bg-card rounded-2xl p-4 border border-card-border">
-                <ResultsPanel 
-                  poll={poll} 
-                  pollId={pollId}
-                  onPollUpdate={setPoll}
-                  actorName={userName}
-                />
+                {hasCompletedVoting || hasPeekedAtResults ? (
+                  <ResultsPanel 
+                    poll={poll} 
+                    pollId={pollId}
+                    onPollUpdate={setPoll}
+                    actorName={userName}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <svg className="w-12 h-12 mx-auto mb-4 text-secondary opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <p className="text-foreground mb-1">But&hellip; isn&apos;t it better if everybody votes first before seeing the results so far?</p>
+                    <button
+                      onClick={async () => {
+                        setIsPeeking(true);
+                        try {
+                          const response = await fetch(`/api/polls/${pollId}/peek`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ actorName: userName.trim() }),
+                          });
+                          if (response.ok) {
+                            const updatedPoll = await response.json();
+                            setPoll(updatedPoll);
+                          }
+                        } catch (err) {
+                          console.error('Failed to log peek:', err);
+                        } finally {
+                          setIsPeeking(false);
+                          setHasPeekedAtResults(true);
+                        }
+                      }}
+                      disabled={isPeeking}
+                      className="text-sm text-muted hover:text-foreground underline underline-offset-2 disabled:opacity-50"
+                    >
+                      {isPeeking ? 'Loading...' : "I'm allowed to look, I promise!"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
