@@ -1,7 +1,8 @@
 import { Redis } from '@upstash/redis';
-import { Poll } from './types';
+import { Poll, Session } from './types';
 
 const POLL_PREFIX = 'poll:';
+const SESSION_PREFIX = 'session:';
 
 // Initialize Upstash Redis client
 const redis = new Redis({
@@ -19,4 +20,12 @@ export async function savePoll(poll: Poll): Promise<void> {
 
 export async function deletePoll(id: string): Promise<void> {
   await redis.del(`${POLL_PREFIX}${id}`);
+}
+
+export async function getSession(id: string): Promise<Session | null> {
+  return await redis.get<Session>(`${SESSION_PREFIX}${id}`);
+}
+
+export async function saveSession(session: Session): Promise<void> {
+  await redis.set(`${SESSION_PREFIX}${session.id}`, session);
 }

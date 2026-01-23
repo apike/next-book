@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { getPoll, savePoll } from '@/lib/kv';
+import { getPoll, savePoll, getSession, saveSession } from '@/lib/kv';
 import { AddBookRequest, Book, Activity } from '@/lib/types';
 
 export async function POST(
@@ -33,6 +33,13 @@ export async function POST(
       );
     }
 
+    if (!body.sessionId || typeof body.sessionId !== 'string') {
+      return NextResponse.json(
+        { error: 'Session ID is required' },
+        { status: 400 }
+      );
+    }
+
     const poll = await getPoll(id);
     
     if (!poll) {
@@ -61,6 +68,13 @@ export async function POST(
     poll.activityLog.push(activity);
     
     await savePoll(poll);
+
+    // Update session with the name if not already set
+    const session = await getSession(body.sessionId);
+    if (session && !session.name) {
+      session.name = body.addedBy.trim();
+      await saveSession(session);
+    }
 
     return NextResponse.json(poll, { status: 201 });
   } catch (error) {

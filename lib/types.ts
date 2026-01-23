@@ -8,8 +8,15 @@ export interface Book {
 
 export interface Voter {
   name: string;
+  sessionId: string; // links vote to browser session
   rankings: string[]; // ordered book IDs (1st preference first)
   completedAt?: number; // timestamp when locked in
+}
+
+export interface Session {
+  id: string;
+  name: string | null; // user's display name, null until first action
+  createdAt: number;
 }
 
 export interface Activity {
@@ -36,11 +43,13 @@ export interface AddBookRequest {
   title: string;
   author: string;
   addedBy: string;
+  sessionId: string;
 }
 
 export interface SubmitVoteRequest {
   voterName: string;
   rankings: string[];
+  sessionId: string;
 }
 
 export interface RankedResult {

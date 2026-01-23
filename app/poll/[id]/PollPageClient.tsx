@@ -9,25 +9,35 @@ import { ResultsPanel } from '@/components/ResultsPanel';
 
 interface PollPageClientProps {
   pollId: string;
+  sessionId: string;
+  initialName: string;
+  hasVotedInPoll: boolean;
+  initialRankings: string[];
 }
 
-export default function PollPageClient({ pollId }: PollPageClientProps) {
+export default function PollPageClient({ 
+  pollId, 
+  sessionId, 
+  initialName, 
+  hasVotedInPoll,
+  initialRankings,
+}: PollPageClientProps) {
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // User state
-  const [userName, setUserName] = useState('');
-  const [hasEnteredName, setHasEnteredName] = useState(false);
-  const [hasCompletedVoting, setHasCompletedVoting] = useState(false);
+  // User state - initialize from server-provided session data
+  const [userName, setUserName] = useState(initialName);
+  const [hasEnteredName, setHasEnteredName] = useState(!!initialName);
+  const [hasCompletedVoting, setHasCompletedVoting] = useState(hasVotedInPoll);
 
   // Form state
   const [bookTitle, setBookTitle] = useState('');
   const [bookAuthor, setBookAuthor] = useState('');
   const [isAddingBook, setIsAddingBook] = useState(false);
 
-  // Rankings state (local to this user's session)
-  const [rankedBookIds, setRankedBookIds] = useState<string[]>([]);
+  // Rankings state - restore from server if already voted
+  const [rankedBookIds, setRankedBookIds] = useState<string[]>(initialRankings);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // UI state
@@ -92,6 +102,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
           title: bookTitle.trim(),
           author: bookAuthor.trim(),
           addedBy: userName.trim(),
+          sessionId,
         }),
       });
 
@@ -160,6 +171,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
         body: JSON.stringify({
           voterName: userName.trim(),
           rankings: rankedBookIds,
+          sessionId,
         }),
       });
 
@@ -257,7 +269,7 @@ export default function PollPageClient({ pollId }: PollPageClientProps) {
         {/* Name entry */}
         {!hasEnteredName ? (
           <div className="bg-card rounded-2xl p-6 border border-card-border shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Enter your name to vote</h2>
+            <h2 className="text-lg font-semibold mb-4">Enter your name to get started</h2>
             <form onSubmit={handleEnterName} className="flex gap-3">
               <input
                 type="text"

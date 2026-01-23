@@ -1,6 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getPoll, savePoll } from '@/lib/kv';
+import { getPoll, savePoll, getSession, saveSession } from '@/lib/kv';
 import { SubmitVoteRequest, Voter, Activity } from '@/lib/types';
+
+/**
+ * Generates a unique name by appending a number if the name already exists.
+ * e.g., "Mike" -> "Mike 2" if "Mike" is taken
+ */
+function generateUniqueName(baseName: string, existingNames: string[]): string {
+  const lowerBaseName = baseName.toLowerCase();
+  const existingLower = existingNames.map(n => n.toLowerCase());
+  
+  // If the name doesn't exist, use it as-is
+  if (!existingLower.includes(lowerBaseName)) {
+    return baseName;
+  }
+  
+  // Find the next available number
+  let counter = 2;
+  while (existingLower.includes(`${lowerBaseName} ${counter}`)) {
+    counter++;
+  }
+  
+  return `${baseName} ${counter}`;
+}
 
 export async function POST(
   request: Request,
@@ -25,12 +47,28 @@ export async function POST(
       );
     }
 
+    if (!body.sessionId || typeof body.sessionId !== 'string') {
+      return NextResponse.json(
+        { error: 'Session ID is required' },
+        { status: 400 }
+      );
+    }
+
     const poll = await getPoll(id);
     
     if (!poll) {
       return NextResponse.json(
         { error: 'Poll not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if this session has already voted in this poll
+    const existingSessionVote = poll.voters.find(v => v.sessionId === body.sessionId && v.completedAt);
+    if (existingSessionVote) {
+      return NextResponse.json(
+        { error: 'You have already voted in this poll' },
+        { status: 400 }
       );
     }
 
@@ -53,20 +91,17 @@ export async function POST(
       );
     }
 
-    // Check if this voter name already exists and has completed
-    const existingVoterIndex = poll.voters.findIndex(
-      v => v.name.toLowerCase() === body.voterName.trim().toLowerCase() && v.completedAt
-    );
+    // Get existing voter names (excluding incomplete votes from this session)
+    const existingNames = poll.voters
+      .filter(v => v.completedAt && v.sessionId !== body.sessionId)
+      .map(v => v.name);
 
-    if (existingVoterIndex !== -1) {
-      return NextResponse.json(
-        { error: 'A voter with this name has already completed voting' },
-        { status: 400 }
-      );
-    }
+    // Generate unique name if there's a duplicate
+    const uniqueName = generateUniqueName(body.voterName.trim(), existingNames);
 
     const voter: Voter = {
-      name: body.voterName.trim(),
+      name: uniqueName,
+      sessionId: body.sessionId,
       rankings: body.rankings,
       completedAt: Date.now(),
     };
@@ -74,12 +109,12 @@ export async function POST(
     const activity: Activity = {
       timestamp: Date.now(),
       type: 'voting_complete',
-      actor: body.voterName.trim(),
+      actor: uniqueName,
     };
 
-    // Remove any existing incomplete vote from same name, then add the completed one
+    // Remove any existing incomplete vote from this session, then add the completed one
     const existingIncompleteIndex = poll.voters.findIndex(
-      v => v.name.toLowerCase() === body.voterName.trim().toLowerCase() && !v.completedAt
+      v => v.sessionId === body.sessionId && !v.completedAt
     );
     
     if (existingIncompleteIndex !== -1) {
@@ -90,6 +125,13 @@ export async function POST(
     poll.activityLog.push(activity);
     
     await savePoll(poll);
+
+    // Update session with the name if not already set
+    const session = await getSession(body.sessionId);
+    if (session && !session.name) {
+      session.name = uniqueName;
+      await saveSession(session);
+    }
 
     return NextResponse.json(poll);
   } catch (error) {
