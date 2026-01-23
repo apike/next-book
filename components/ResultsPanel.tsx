@@ -144,20 +144,29 @@ function getScoreExplanation(result: RankedResult): string {
   return `Worst loss: ${result.worstDefeat} vote${result.worstDefeat !== 1 ? 's' : ''}`;
 }
 
+/**
+ * Gets a unique identifier for a voter. For new voters this is their sessionId,
+ * but for legacy voters (created before sessionId was required), we generate
+ * a fallback identifier from their name and completedAt timestamp.
+ */
+function getVoterKey(voter: Voter): string {
+  return voter.sessionId || `legacy-${voter.name}-${voter.completedAt}`;
+}
+
 export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsPanelProps) {
-  const [selectedVoterSessionId, setSelectedVoterSessionId] = useState<string | null>(null);
+  const [selectedVoterKey, setSelectedVoterKey] = useState<string | null>(null);
   const [isExcluding, setIsExcluding] = useState(false);
   
   const completedVoters = poll.voters.filter(v => v.completedAt);
   const activeVoters = completedVoters.filter(v => !v.excluded);
   const results = calculateMinimaxResults(poll.books, completedVoters);
   
-  const selectedVoter = selectedVoterSessionId 
-    ? completedVoters.find(v => v.sessionId === selectedVoterSessionId) 
+  const selectedVoter = selectedVoterKey 
+    ? completedVoters.find(v => getVoterKey(v) === selectedVoterKey) 
     : null;
 
   const handleToggleExclude = async () => {
-    if (!selectedVoter) return;
+    if (!selectedVoter || !selectedVoterKey) return;
     
     setIsExcluding(true);
     try {
@@ -165,7 +174,7 @@ export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsP
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          voterSessionId: selectedVoter.sessionId,
+          voterKey: selectedVoterKey,
           actorName,
         }),
       });
@@ -260,17 +269,20 @@ export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsP
         <h4 className="text-sm font-semibold mb-3">Completed Voting</h4>
         <p className="text-xs text-muted mb-3">Tap a name to see their votes or exclude them from results.</p>
         <div className="flex flex-wrap gap-2">
-          {completedVoters.map((voter) => (
-            <VoterBadge 
-              key={voter.sessionId} 
-              voter={voter} 
-              poll={poll}
-              isSelected={selectedVoterSessionId === voter.sessionId}
-              onClick={() => setSelectedVoterSessionId(
-                selectedVoterSessionId === voter.sessionId ? null : voter.sessionId
-              )}
-            />
-          ))}
+          {completedVoters.map((voter) => {
+            const voterKey = getVoterKey(voter);
+            return (
+              <VoterBadge 
+                key={voterKey} 
+                voter={voter} 
+                poll={poll}
+                isSelected={selectedVoterKey === voterKey}
+                onClick={() => setSelectedVoterKey(
+                  selectedVoterKey === voterKey ? null : voterKey
+                )}
+              />
+            );
+          })}
         </div>
         
         {/* Selected voter details */}

@@ -56,10 +56,10 @@ export default function Home() {
             className="w-16 h-16 mb-2 mx-auto"
           />
           <h1 className="text-2xl font-bold mb-1 font-serif">
-            Book Club Poll
+            Next Book
           </h1>
           <p className="text-muted text-sm">
-            Create a poll, invite your friends, and vote on your next read together.
+            Polling for book clubs, with ranked voting.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export default function Home() {
               id="pollName"
               value={pollName}
               onChange={(e) => setPollName(e.target.value)}
-              placeholder="e.g., January 2026 Book Club"
+              placeholder="e.g., January Picks"
               autoComplete="off"
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-card-border focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted/60"
               disabled={isCreating}

@@ -54,7 +54,7 @@ export interface SubmitVoteRequest {
 }
 
 export interface ToggleExcludeRequest {
-  voterSessionId: string; // sessionId of the voter to exclude/include
+  voterKey: string; // sessionId for new voters, or "legacy-{name}-{timestamp}" for old voters
   actorName: string; // name of the person performing the action
 }
 

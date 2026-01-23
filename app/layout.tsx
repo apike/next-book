@@ -19,8 +19,8 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Book Club Poll",
-  description: "A simple voting app for your book club",
+  title: "Next Book – Book club ranked voting",
+  description: "Polling for book clubs, with ranked voting.",
   icons: {
     icon: "/next-book.png",
     apple: "/next-book.png",
@@ -48,7 +48,7 @@ export default function RootLayout({
             href="/"
             className="text-primary hover:underline"
           >
-            Book Club Voter
+            Next Book
           </a>
           {' '}is a tiny experiment by{' '}
           <a 

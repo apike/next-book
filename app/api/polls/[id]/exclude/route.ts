@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getPoll, savePoll } from '@/lib/kv';
-import { ToggleExcludeRequest, Activity } from '@/lib/types';
+import { ToggleExcludeRequest, Activity, Voter } from '@/lib/types';
+
+/**
+ * Gets a unique identifier for a voter. For new voters this is their sessionId,
+ * but for legacy voters (created before sessionId was required), we generate
+ * a fallback identifier from their name and completedAt timestamp.
+ */
+function getVoterKey(voter: Voter): string {
+  return voter.sessionId || `legacy-${voter.name}-${voter.completedAt}`;
+}
 
 export async function POST(
   request: Request,
@@ -11,9 +20,9 @@ export async function POST(
     const body: ToggleExcludeRequest = await request.json();
     
     // Validate input
-    if (!body.voterSessionId || typeof body.voterSessionId !== 'string') {
+    if (!body.voterKey || typeof body.voterKey !== 'string') {
       return NextResponse.json(
-        { error: 'Voter session ID is required' },
+        { error: 'Voter key is required' },
         { status: 400 }
       );
     }
@@ -34,9 +43,9 @@ export async function POST(
       );
     }
 
-    // Find the voter by sessionId
+    // Find the voter by their key (sessionId for new voters, legacy key for old voters)
     const voterIndex = poll.voters.findIndex(
-      v => v.sessionId === body.voterSessionId && v.completedAt
+      v => v.completedAt && getVoterKey(v) === body.voterKey
     );
 
     if (voterIndex === -1) {
