@@ -21,6 +21,10 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   title: "Book Club Poll",
   description: "A simple voting app for your book club",
+  icons: {
+    icon: "/next-book.png",
+    apple: "/next-book.png",
+  },
 };
 
 export const viewport: Viewport = {

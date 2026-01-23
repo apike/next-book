@@ -46,7 +46,6 @@ MIT
 
 ## Next Up Todos
 
-- Set favicon (right now it shows vercel)
 - Let any user optionally add a passkey so they can return to see results
 - Set an optional deadline to vote
 - Security review (especially XSS/injection)
