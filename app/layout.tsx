@@ -18,12 +18,28 @@ const sourceSans = Source_Sans_3({
   display: 'swap',
 });
 
+const title = "Next Book – Book club ranked voting";
+const description = "Polling for book clubs, with ranked voting.";
+
 export const metadata: Metadata = {
-  title: "Next Book – Book club ranked voting",
-  description: "Polling for book clubs, with ranked voting.",
+  metadataBase: new URL("https://nextbook.club"),
+  title,
+  description,
   icons: {
     icon: "/next-book.png",
     apple: "/next-book.png",
+  },
+  openGraph: {
+    title,
+    description,
+    images: ["/next-book.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title,
+    description,
+    images: ["/next-book.png"],
   },
 };
 

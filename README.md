@@ -46,6 +46,8 @@ MIT
 
 ## Next Up Todos
 
+- Formalize creating a group name so you can show previous results in the series
+- Support passkeys for persistend login
 - Let any user optionally add a passkey so they can return to see results
 - Set an optional deadline to vote
 - Security review (especially XSS/injection)

@@ -15,12 +15,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     
     if (!poll) {
       return {
-        title: 'Poll Not Found - Book Club Poll',
+        title: 'Poll Not Found - Next Book',
         description: 'This poll could not be found.',
       };
     }
 
-    const title = `${poll.name} - Book Club Poll`;
+    const title = `${poll.name} - Next Book`;
     const description = `Vote on books for ${poll.name}. A simple voting app for your book club.`;
 
     return {
@@ -29,12 +29,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       openGraph: {
         title,
         description,
+        images: ["/next-book.png"],
         type: 'website',
       },
       twitter: {
         card: 'summary',
         title,
         description,
+        images: ["/next-book.png"],
       },
     };
   } catch (error) {
