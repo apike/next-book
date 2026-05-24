@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { Poll } from '@/lib/types';
 import { CopyLinkButton } from '@/components/CopyLinkButton';
 import { BookList } from '@/components/BookList';
@@ -223,9 +224,9 @@ export default function PollPageClient({
           </div>
           <h1 className="text-xl font-bold mb-2">Oops!</h1>
           <p className="text-muted">{error}</p>
-          <a href="/" className="inline-block mt-6 text-primary hover:underline">
+          <Link href="/" className="inline-block mt-6 text-primary hover:underline">
             ← Create a new poll
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -415,7 +416,7 @@ export default function PollPageClient({
                     </svg>
                     <p className="text-muted">
                       Folks have already voted ({poll.voters.map(v => v.name).join(', ')}) so adding books is closed.
-                      You can <a href="/" className="text-primary hover:underline">start a new poll</a> though if need be!
+                      You can <Link href="/" className="text-primary hover:underline">start a new poll</Link> though if need be!
                     </p>
                   </div>
                 ) : (

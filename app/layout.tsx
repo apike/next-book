@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import Script from "next/script";
 import { Libre_Baskerville, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
@@ -60,12 +61,12 @@ export default function RootLayout({
       <body className="antialiased font-sans pt-safe">
         {children}
         <footer className="pb-4 text-center text-xs text-muted">
-          <a 
+          <Link
             href="/"
             className="text-primary hover:underline"
           >
             Next Book
-          </a>
+          </Link>
           {' '}is a tiny experiment by{' '}
           <a 
             href="https://allenpike.com" 
