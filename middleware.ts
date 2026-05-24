@@ -17,6 +17,7 @@ export function middleware(request: NextRequest) {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
+      secure: process.env.NODE_ENV === 'production',
       // 10 years
       maxAge: 60 * 60 * 24 * 365 * 10,
     });
@@ -25,7 +26,7 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// Only run middleware on poll pages (where we need sessions)
+// Run wherever anonymous browser sessions or passkey auth can be used.
 export const config = {
-  matcher: '/poll/:path*',
+  matcher: ['/', '/poll/:path*', '/club/:path*', '/api/:path*'],
 };

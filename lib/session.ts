@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { Session } from './types';
-import { getSession, saveSession } from './kv';
+import type { Account, Session } from './types';
+import { getAccount, getSession, saveSession } from './kv';
 
 const SESSION_COOKIE_NAME = 'bookpoll_session';
 
@@ -75,4 +75,38 @@ export async function setSessionName(sessionId: string, name: string): Promise<v
     session.name = name;
     await saveSession(session);
   }
+}
+
+export async function setSessionAccountId(sessionId: string, accountId: string): Promise<void> {
+  const session = await getSession(sessionId);
+  if (session) {
+    session.accountId = accountId;
+    await saveSession(session);
+  }
+}
+
+export async function clearSessionAccountId(sessionId: string): Promise<void> {
+  const session = await getSession(sessionId);
+  if (session?.accountId) {
+    delete session.accountId;
+    await saveSession(session);
+  }
+}
+
+export async function clearSessionIdentity(sessionId: string): Promise<void> {
+  const session = await getSession(sessionId);
+  if (session) {
+    session.name = null;
+    delete session.accountId;
+    await saveSession(session);
+  }
+}
+
+export async function getCurrentAccount(): Promise<Account | null> {
+  const session = await getCurrentSession();
+  if (!session?.accountId) {
+    return null;
+  }
+
+  return await getAccount(session.accountId);
 }

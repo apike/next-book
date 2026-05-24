@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Poll } from '@/lib/types';
+import { loginWithPasskey, registerWithPasskey } from '@/lib/passkey-client';
+import { CasualUserMenu, UserMenu } from '@/components/UserMenu';
+import type { Account, AuthMeResponse, ClubMember, Poll, Voter } from '@/lib/types';
 import { CopyLinkButton } from '@/components/CopyLinkButton';
 import { BookList } from '@/components/BookList';
 import { ActivityLog } from '@/components/ActivityLog';
@@ -14,14 +16,22 @@ interface PollPageClientProps {
   initialName: string;
   hasVotedInPoll: boolean;
   initialRankings: string[];
+  initialAccount: Account | null;
+  initialCredentialCount: number;
+  initialClubMember: ClubMember | null;
+  initialClubName: string | null;
 }
 
 export default function PollPageClient({ 
   pollId, 
-  sessionId, 
+  sessionId: initialSessionId,
   initialName, 
   hasVotedInPoll,
   initialRankings,
+  initialAccount,
+  initialCredentialCount,
+  initialClubMember,
+  initialClubName,
 }: PollPageClientProps) {
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,8 +39,16 @@ export default function PollPageClient({
 
   // User state - initialize from server-provided session data
   const [userName, setUserName] = useState(initialName);
+  const [currentSessionId, setCurrentSessionId] = useState(initialSessionId);
   const [hasEnteredName, setHasEnteredName] = useState(!!initialName);
   const [hasCompletedVoting, setHasCompletedVoting] = useState(hasVotedInPoll);
+  const [account, setAccount] = useState<Account | null>(initialAccount);
+  const [credentialCount, setCredentialCount] = useState(initialCredentialCount);
+  const [clubMember, setClubMember] = useState<ClubMember | null>(initialClubMember);
+  const [clubName, setClubName] = useState<string | null>(initialClubName);
+  const [clubMembers, setClubMembers] = useState<ClubMember[]>(initialClubMember ? [initialClubMember] : []);
+  const [isAuthWorking, setIsAuthWorking] = useState(false);
+  const [isJoiningClub, setIsJoiningClub] = useState(false);
 
   // Form state
   const [bookTitle, setBookTitle] = useState('');
@@ -49,6 +67,7 @@ export default function PollPageClient({
   
   // Refs
   const bookTitleInputRef = useRef<HTMLInputElement>(null);
+  const hasAttemptedJoinRef = useRef(false);
 
   const fetchPoll = useCallback(async () => {
     try {
@@ -70,9 +89,138 @@ export default function PollPageClient({
     }
   }, [pollId]);
 
+  const fetchClubContext = useCallback(async (clubId: string) => {
+    try {
+      const response = await fetch(`/api/clubs/${clubId}`);
+      if (!response.ok) {
+        return;
+      }
+
+      const data: {
+        club: { name: string };
+        members: ClubMember[];
+        currentMember: ClubMember | null;
+      } = await response.json();
+
+      setClubName(data.club.name);
+      setClubMembers(data.members);
+      if (data.currentMember) {
+        setClubMember(data.currentMember);
+        setUserName(data.currentMember.displayName);
+        setHasEnteredName(true);
+      }
+    } catch {
+      // Polls remain usable without club context.
+    }
+  }, []);
+
+  const claimSessionVote = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/polls/${pollId}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data: {
+        claimed: boolean;
+        poll?: Poll;
+        voter?: Voter;
+        clubMember?: ClubMember | null;
+      } = await response.json();
+
+      if (data.poll) {
+        setPoll(data.poll);
+      }
+
+      const claimedClubMember = data.clubMember;
+      if (claimedClubMember) {
+        setClubMember(claimedClubMember);
+        setClubMembers((members) => {
+          if (members.some((member) => member.id === claimedClubMember.id)) {
+            return members;
+          }
+          return [...members, claimedClubMember];
+        });
+      }
+
+      if (data.voter) {
+        setUserName(data.voter.name);
+        setHasEnteredName(true);
+        setHasCompletedVoting(true);
+        setRankedBookIds(data.voter.rankings);
+      }
+    } catch {
+      // Existing anonymous votes remain usable if claiming fails.
+    }
+  }, [pollId]);
+
   useEffect(() => {
     fetchPoll();
   }, [fetchPoll]);
+
+  useEffect(() => {
+    if (poll?.clubId) {
+      fetchClubContext(poll.clubId);
+    }
+  }, [fetchClubContext, poll?.clubId]);
+
+  useEffect(() => {
+    async function joinClub() {
+      if (!poll?.clubId || !account || clubMember || isJoiningClub || hasAttemptedJoinRef.current) {
+        return;
+      }
+
+      hasAttemptedJoinRef.current = true;
+      setIsJoiningClub(true);
+      try {
+        const response = await fetch(`/api/clubs/${poll.clubId}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (response.ok) {
+          const data: { member: ClubMember } = await response.json();
+          setClubMember(data.member);
+          setClubMembers((members) => {
+            if (members.some((member) => member.id === data.member.id)) {
+              return members;
+            }
+            return [...members, data.member];
+          });
+          setUserName(data.member.displayName);
+          setHasEnteredName(true);
+        }
+      } catch {
+        // A signed-in user can still use the poll as a casual participant.
+      } finally {
+        setIsJoiningClub(false);
+      }
+    }
+
+    joinClub();
+  }, [account, clubMember, isJoiningClub, poll?.clubId]);
+
+  useEffect(() => {
+    if (!poll || !account) {
+      return;
+    }
+
+    const existingVoter = poll.voters.find(voter => (
+      voter.completedAt &&
+      (voter.accountId === account.id || (!!clubMember && voter.clubMemberId === clubMember.id))
+    ));
+
+    if (existingVoter) {
+      setUserName(existingVoter.name);
+      setHasEnteredName(true);
+      setHasCompletedVoting(true);
+      setRankedBookIds(existingVoter.rankings);
+    }
+  }, [account, clubMember, poll]);
 
   // Default to Add Books tab if no books yet (only on initial load)
   const hasSetInitialTab = useRef(false);
@@ -92,6 +240,54 @@ export default function PollPageClient({
     }
   };
 
+  const handleLogin = async () => {
+    setIsAuthWorking(true);
+    setError('');
+    try {
+      const auth: AuthMeResponse = await loginWithPasskey();
+      hasAttemptedJoinRef.current = false;
+      setAccount(auth.account);
+      setCredentialCount(auth.credentialCount);
+      if (auth.account && !clubMember) {
+        setUserName(auth.account.displayName);
+        setHasEnteredName(true);
+      }
+      await claimSessionVote();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in.');
+    } finally {
+      setIsAuthWorking(false);
+    }
+  };
+
+  const handleCreatePasskey = async (): Promise<boolean> => {
+    const displayName = userName.trim();
+    if (!displayName) {
+      setError('Enter your name before creating a passkey.');
+      return false;
+    }
+
+    setIsAuthWorking(true);
+    setError('');
+    try {
+      const auth: AuthMeResponse = await registerWithPasskey(displayName, pollId);
+      hasAttemptedJoinRef.current = false;
+      setAccount(auth.account);
+      setCredentialCount(auth.credentialCount);
+      if (auth.account) {
+        setUserName(auth.account.displayName);
+        setHasEnteredName(true);
+      }
+      await claimSessionVote();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create passkey.');
+      return false;
+    } finally {
+      setIsAuthWorking(false);
+    }
+  };
+
   const handleAddBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookTitle.trim() || !bookAuthor.trim() || !userName.trim()) return;
@@ -105,7 +301,7 @@ export default function PollPageClient({
           title: bookTitle.trim(),
           author: bookAuthor.trim(),
           addedBy: userName.trim(),
-          sessionId,
+          sessionId: currentSessionId,
         }),
       });
 
@@ -174,7 +370,7 @@ export default function PollPageClient({
         body: JSON.stringify({
           voterName: userName.trim(),
           rankings: rankedBookIds,
-          sessionId,
+          sessionId: currentSessionId,
         }),
       });
 
@@ -234,16 +430,56 @@ export default function PollPageClient({
 
   if (!poll) return null;
 
+  const hasAnyCompletedVotes = poll.voters.some(voter => voter.completedAt);
+
   return (
     <main className="pb-6">
       {/* Header */}
       <header className="border-b border-card-border">
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="text-xl font-bold font-serif">
-              {poll.name}
-            </h1>
-            <CopyLinkButton />
+            <div className="min-w-0 flex-1">
+              {poll.clubId && clubName && (
+                <Link
+                  href={`/club/${poll.clubId}`}
+                  className="block text-sm text-primary hover:underline truncate"
+                >
+                  {clubName}
+                </Link>
+              )}
+              <h1 className="text-xl font-bold font-serif">
+                {poll.name}
+              </h1>
+            </div>
+            {account ? (
+              <UserMenu
+                account={account}
+                credentialCount={credentialCount}
+                onCredentialCountChange={setCredentialCount}
+                onSignOut={(newSessionId) => {
+                  setAccount(null);
+                  setCredentialCount(0);
+                  setClubMember(null);
+                  setUserName('');
+                  setHasEnteredName(false);
+                  setHasCompletedVoting(false);
+                  setRankedBookIds([]);
+                  setHasPeekedAtResults(false);
+                  hasAttemptedJoinRef.current = false;
+                  if (newSessionId) {
+                    setCurrentSessionId(newSessionId);
+                  }
+                }}
+                onError={setError}
+                verifiedLabel={clubMember ? 'Verified member' : undefined}
+              />
+            ) : hasEnteredName && userName.trim() ? (
+              <CasualUserMenu
+                displayName={userName.trim()}
+                isWorking={isAuthWorking}
+                onCreatePasskey={handleCreatePasskey}
+              />
+            ) : null}
           </div>
         </div>
       </header>
@@ -290,18 +526,22 @@ export default function PollPageClient({
                 Continue
               </button>
             </form>
+            {poll.clubId && !account && (
+              <button
+                type="button"
+                onClick={handleLogin}
+                disabled={isAuthWorking}
+                className="mt-3 w-full py-2.5 rounded-xl border border-card-border bg-background text-foreground text-sm font-medium hover:bg-card disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAuthWorking ? 'Signing in...' : 'Sign in with passkey'}
+              </button>
+            )}
           </div>
         ) : (
           <>
-            {/* User badge */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary">
-                    {userName.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span className="font-medium">{userName}</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <CopyLinkButton />
                 {hasCompletedVoting && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,15 +551,26 @@ export default function PollPageClient({
                   </span>
                 )}
               </div>
-              <button
-                onClick={fetchPoll}
-                className="text-sm text-muted hover:text-foreground flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </button>
+              <div className="flex flex-shrink-0 items-center gap-3">
+                {poll.clubId && !account && (
+                  <button
+                    onClick={handleLogin}
+                    disabled={isAuthWorking}
+                    className="text-sm text-primary hover:underline disabled:opacity-50"
+                  >
+                    Sign in
+                  </button>
+                )}
+                <button
+                  onClick={fetchPoll}
+                  className="text-sm text-muted hover:text-foreground flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
             </div>
 
             {/* Tabs */}
@@ -416,7 +667,7 @@ export default function PollPageClient({
                     </svg>
                     <p className="text-muted">
                       Folks have already voted ({poll.voters.map(v => v.name).join(', ')}) so adding books is closed.
-                      You can <Link href="/" className="text-primary hover:underline">start a new poll</Link> though if need be!
+                      You can <Link href={poll.clubId ? `/club/${poll.clubId}` : '/'} className="text-primary hover:underline">start a new poll</Link> though if need be!
                     </p>
                   </div>
                 ) : (
@@ -507,12 +758,13 @@ export default function PollPageClient({
 
             {activeTab === 'results' && (
               <div className="bg-card rounded-2xl p-4 border border-card-border">
-                {hasCompletedVoting || hasPeekedAtResults ? (
+                {!hasAnyCompletedVotes || hasCompletedVoting || hasPeekedAtResults ? (
                   <ResultsPanel 
                     poll={poll} 
                     pollId={pollId}
                     onPollUpdate={setPoll}
                     actorName={userName}
+                    clubMembers={poll.clubId ? clubMembers : []}
                   />
                 ) : (
                   <div className="text-center py-8">

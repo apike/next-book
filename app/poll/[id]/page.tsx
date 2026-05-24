@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getPoll } from '@/lib/kv';
+import { getAccount, getAccountCredentialIds, getClub, getClubMember, getPoll } from '@/lib/kv';
 import { getOrCreateSession } from '@/lib/session';
 import PollPageClient from './PollPageClient';
 
@@ -68,11 +68,21 @@ export default async function PollPage({ params }: PageProps) {
   const sessionId = session?.id ?? '';
   
   // Check if this session has already voted in this poll (must have completedAt set)
-  const existingVoter = session && poll ? poll.voters.find(v => v.sessionId === session.id && v.completedAt) : null;
+  const account = session?.accountId ? await getAccount(session.accountId) : null;
+  const credentialCount = account ? (await getAccountCredentialIds(account.id)).length : 0;
+  const club = poll?.clubId ? await getClub(poll.clubId) : null;
+  const clubMember = account && poll?.clubId ? await getClubMember(poll.clubId, account.id) : null;
+  const existingVoter = session && poll
+    ? poll.voters.find(v => (
+        account && v.accountId === account.id && v.completedAt
+      ) || (
+        v.sessionId === session.id && v.completedAt
+      ))
+    : null;
   const hasVotedInPoll = !!existingVoter;
   
   // Use the name from the existing vote if they voted, otherwise from session
-  const initialName = existingVoter?.name ?? session?.name ?? '';
+  const initialName = existingVoter?.name ?? clubMember?.displayName ?? account?.displayName ?? session?.name ?? '';
   
   // Restore rankings if they've already voted
   const initialRankings = existingVoter?.rankings ?? [];
@@ -84,6 +94,10 @@ export default async function PollPage({ params }: PageProps) {
       initialName={initialName}
       hasVotedInPoll={hasVotedInPoll}
       initialRankings={initialRankings}
+      initialAccount={account}
+      initialCredentialCount={credentialCount}
+      initialClubMember={clubMember}
+      initialClubName={club?.name ?? null}
     />
   );
 }

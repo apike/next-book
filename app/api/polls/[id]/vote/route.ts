@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getPoll, savePoll, getSession, saveSession } from '@/lib/kv';
-import { SubmitVoteRequest, Voter, Activity } from '@/lib/types';
+import { ensureClubMember } from '@/lib/clubs';
+import { getAccount, getPoll, getSession, savePoll, saveSession } from '@/lib/kv';
+import { getCurrentSession } from '@/lib/session';
+import type { SubmitVoteRequest, Voter, Activity } from '@/lib/types';
 
 /**
  * Generates a unique name by appending a number if the name already exists.
@@ -63,9 +65,21 @@ export async function POST(
       );
     }
 
-    // Check if this session has already voted in this poll
+    const currentSession = await getCurrentSession();
+    const currentAccount = currentSession?.id === body.sessionId && currentSession.accountId
+      ? await getAccount(currentSession.accountId)
+      : null;
+    const clubMember = currentAccount && poll.clubId
+      ? await ensureClubMember(poll.clubId, currentAccount)
+      : null;
+
+    const existingVerifiedVote = clubMember
+      ? poll.voters.find(v => v.completedAt && (v.clubMemberId === clubMember.id || v.accountId === currentAccount?.id))
+      : null;
+
+    // Check if this session has already voted in this poll.
     const existingSessionVote = poll.voters.find(v => v.sessionId === body.sessionId && v.completedAt);
-    if (existingSessionVote) {
+    if (existingVerifiedVote || existingSessionVote) {
       return NextResponse.json(
         { error: 'You have already voted in this poll' },
         { status: 400 }
@@ -91,17 +105,22 @@ export async function POST(
       );
     }
 
-    // Get existing voter names (excluding incomplete votes from this session)
-    const existingNames = poll.voters
-      .filter(v => v.completedAt && v.sessionId !== body.sessionId)
-      .map(v => v.name);
-
-    // Generate unique name if there's a duplicate
-    const uniqueName = generateUniqueName(body.voterName.trim(), existingNames);
+    const displayName = clubMember?.displayName ?? body.voterName.trim();
+    const uniqueName = clubMember
+      ? displayName
+      : generateUniqueName(
+          displayName,
+          poll.voters
+            .filter(v => v.completedAt && v.sessionId !== body.sessionId)
+            .map(v => v.name)
+        );
 
     const voter: Voter = {
       name: uniqueName,
       sessionId: body.sessionId,
+      accountId: currentAccount?.id,
+      clubMemberId: clubMember?.id,
+      verified: !!clubMember,
       rankings: body.rankings,
       completedAt: Date.now(),
     };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Poll, RankedResult, Voter } from '@/lib/types';
+import type { ClubMember, Poll, RankedResult, Voter } from '@/lib/types';
 import { calculateMinimaxResults } from '@/lib/minimax';
 
 interface ResultsPanelProps {
@@ -9,6 +9,7 @@ interface ResultsPanelProps {
   pollId: string;
   onPollUpdate: (poll: Poll) => void;
   actorName: string;
+  clubMembers?: ClubMember[];
 }
 
 interface VoterBadgeProps {
@@ -153,13 +154,19 @@ function getVoterKey(voter: Voter): string {
   return voter.sessionId || `legacy-${voter.name}-${voter.completedAt}`;
 }
 
-export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsPanelProps) {
+export function ResultsPanel({ poll, pollId, onPollUpdate, actorName, clubMembers = [] }: ResultsPanelProps) {
   const [selectedVoterKey, setSelectedVoterKey] = useState<string | null>(null);
   const [isExcluding, setIsExcluding] = useState(false);
   
   const completedVoters = poll.voters.filter(v => v.completedAt);
   const activeVoters = completedVoters.filter(v => !v.excluded);
   const results = calculateMinimaxResults(poll.books, completedVoters);
+  const completedAccountIds = new Set(completedVoters.map(v => v.accountId).filter(Boolean));
+  const completedClubMemberIds = new Set(completedVoters.map(v => v.clubMemberId).filter(Boolean));
+  const membersStillToVote = clubMembers.filter(member => (
+    !completedClubMemberIds.has(member.id) &&
+    !completedAccountIds.has(member.accountId)
+  ));
   
   const selectedVoter = selectedVoterKey 
     ? completedVoters.find(v => getVoterKey(v) === selectedVoterKey) 
@@ -196,7 +203,7 @@ export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsP
   if (completedVoters.length === 0) {
     return (
       <div className="text-center py-8 text-muted">
-        <p>No votes yet. Results will appear once someone completes voting.</p>
+        <p>No votes yet.</p>
       </div>
     );
   }
@@ -296,6 +303,22 @@ export function ResultsPanel({ poll, pollId, onPollUpdate, actorName }: ResultsP
           />
         )}
       </div>
+
+      {membersStillToVote.length > 0 && (
+        <div className="pt-4 border-t border-card-border">
+          <h4 className="text-sm font-semibold mb-3">Still to Vote</h4>
+          <div className="flex flex-wrap gap-2">
+            {membersStillToVote.map((member) => (
+              <span
+                key={member.id}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-muted/10 text-muted text-sm"
+              >
+                {member.displayName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
