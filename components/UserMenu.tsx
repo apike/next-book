@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { addPasskey } from '@/lib/passkey-client';
 import type { Account } from '@/lib/types';
@@ -116,11 +117,20 @@ export function UserMenu({
             )}
           </div>
 
+          {account.admin && (
+            <Link
+              href="/admin"
+              onClick={() => setIsOpen(false)}
+              className="mt-2 block w-full px-3 py-2 rounded-lg text-left hover:bg-background"
+            >
+              Admin
+            </Link>
+          )}
           <button
             type="button"
             onClick={handleAddPasskey}
             disabled={isWorking}
-            className="mt-2 w-full px-3 py-2 rounded-lg text-left hover:bg-background disabled:opacity-50"
+            className={`${account.admin ? '' : 'mt-2 '}w-full px-3 py-2 rounded-lg text-left hover:bg-background disabled:opacity-50`}
           >
             Add another passkey
           </button>

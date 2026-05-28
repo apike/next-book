@@ -29,6 +29,7 @@ export interface Session {
 export interface Account {
   id: string;
   displayName: string;
+  admin?: boolean;
   createdAt: number;
   updatedAt: number;
 }

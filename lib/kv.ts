@@ -65,6 +65,30 @@ export async function getPoll(id: string): Promise<Poll | null> {
   return await redis.get<Poll>(`${POLL_PREFIX}${id}`);
 }
 
+export async function getAllPolls(): Promise<Poll[]> {
+  const pollKeys: string[] = [];
+  let cursor = '0';
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: `${POLL_PREFIX}*`,
+      count: 100,
+      type: 'string',
+    });
+    cursor = nextCursor;
+    pollKeys.push(...keys);
+  } while (cursor !== '0');
+
+  if (pollKeys.length === 0) {
+    return [];
+  }
+
+  const polls = await redis.mget<(Poll | null)[]>(...pollKeys);
+  return polls
+    .filter((poll): poll is Poll => poll !== null)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function savePoll(poll: Poll): Promise<void> {
   await redis.set(`${POLL_PREFIX}${poll.id}`, poll);
 }
@@ -127,6 +151,30 @@ export async function addAccountClubId(accountId: string, clubId: string): Promi
 
 export async function getClub(id: string): Promise<Club | null> {
   return await redis.get<Club>(`${CLUB_PREFIX}${id}`);
+}
+
+export async function getAllClubs(): Promise<Club[]> {
+  const clubKeys: string[] = [];
+  let cursor = '0';
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: `${CLUB_PREFIX}*`,
+      count: 100,
+      type: 'string',
+    });
+    cursor = nextCursor;
+    clubKeys.push(...keys);
+  } while (cursor !== '0');
+
+  if (clubKeys.length === 0) {
+    return [];
+  }
+
+  const clubs = await redis.mget<(Club | null)[]>(...clubKeys);
+  return clubs
+    .filter((club): club is Club => club !== null)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function saveClub(club: Club): Promise<void> {

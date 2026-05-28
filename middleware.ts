@@ -28,5 +28,5 @@ export function middleware(request: NextRequest) {
 
 // Run wherever anonymous browser sessions or passkey auth can be used.
 export const config = {
-  matcher: ['/', '/poll/:path*', '/club/:path*', '/api/:path*'],
+  matcher: ['/', '/poll/:path*', '/club/:path*', '/admin/:path*', '/api/:path*'],
 };

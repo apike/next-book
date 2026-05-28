@@ -33,3 +33,12 @@ export async function getRequiredAccount(): Promise<{ session: Session; account:
 
   return { session, account };
 }
+
+export async function getRequiredAdmin(): Promise<{ session: Session; account: Account } | null> {
+  const auth = await getRequiredAccount();
+  if (!auth?.account.admin) {
+    return null;
+  }
+
+  return auth;
+}
