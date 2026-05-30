@@ -129,6 +129,7 @@ export interface ToggleExcludeRequest {
 export interface RankedResult {
   book: Book;
   worstDefeat: number; // The margin of their worst pairwise loss
+  pairwiseWins: number; // Number of head-to-head matchups won
   rank: number;
 }
 

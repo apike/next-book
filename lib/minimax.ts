@@ -1,4 +1,4 @@
-import { Book, Voter, RankedResult } from './types';
+import type { Book, Voter, RankedResult } from './types';
 
 /**
  * Minimax Condorcet voting algorithm
@@ -20,11 +20,13 @@ export function calculateMinimaxResults(
     return books.map((book, index) => ({
       book,
       worstDefeat: 0,
+      pairwiseWins: 0,
       rank: index + 1,
     }));
   }
 
   const bookIds = books.map(b => b.id);
+  const bookOrder = new Map(books.map((book, index) => [book.id, index]));
   
   // Build pairwise preference matrix
   // pairwise[i][j] = number of voters who prefer book i over book j
@@ -76,17 +78,23 @@ export function calculateMinimaxResults(
     }
   }
   
-  // Calculate worst defeat for each book
+  // Calculate worst defeat and pairwise wins for each book
   const worstDefeats: Map<string, number> = new Map();
+  const pairwiseWins: Map<string, number> = new Map();
   
   for (const bookId of bookIds) {
     let worstDefeat = Number.NEGATIVE_INFINITY;
+    let pairwiseWinCount = 0;
     
     for (const opponentId of bookIds) {
       if (bookId === opponentId) continue;
       
       const votesFor = pairwise.get(bookId)!.get(opponentId)!;
       const votesAgainst = pairwise.get(opponentId)!.get(bookId)!;
+      
+      if (votesFor > votesAgainst) {
+        pairwiseWinCount++;
+      }
       
       // Defeat margin: how much we lost by (positive = we lost)
       const defeatMargin = votesAgainst - votesFor;
@@ -98,13 +106,24 @@ export function calculateMinimaxResults(
     
     // If there's only one book, or no defeats, set to 0
     worstDefeats.set(bookId, worstDefeat === Number.NEGATIVE_INFINITY ? 0 : worstDefeat);
+    pairwiseWins.set(bookId, pairwiseWinCount);
   }
   
-  // Sort books by worst defeat (ascending - smaller is better)
+  // Sort books by worst defeat, then pairwise wins, then original book order.
   const sortedBooks = [...books].sort((a, b) => {
     const defeatA = worstDefeats.get(a.id) ?? 0;
     const defeatB = worstDefeats.get(b.id) ?? 0;
-    return defeatA - defeatB;
+    if (defeatA !== defeatB) {
+      return defeatA - defeatB;
+    }
+
+    const winsA = pairwiseWins.get(a.id) ?? 0;
+    const winsB = pairwiseWins.get(b.id) ?? 0;
+    if (winsA !== winsB) {
+      return winsB - winsA;
+    }
+
+    return (bookOrder.get(a.id) ?? 0) - (bookOrder.get(b.id) ?? 0);
   });
   
   // Assign ranks (handle ties)
@@ -114,11 +133,14 @@ export function calculateMinimaxResults(
   for (let i = 0; i < sortedBooks.length; i++) {
     const book = sortedBooks[i];
     const worstDefeat = worstDefeats.get(book.id) ?? 0;
+    const pairwiseWinCount = pairwiseWins.get(book.id) ?? 0;
     
     // Check if tied with previous
     if (i > 0) {
-      const prevDefeat = worstDefeats.get(sortedBooks[i - 1].id) ?? 0;
-      if (worstDefeat !== prevDefeat) {
+      const prevBook = sortedBooks[i - 1];
+      const prevDefeat = worstDefeats.get(prevBook.id) ?? 0;
+      const prevPairwiseWins = pairwiseWins.get(prevBook.id) ?? 0;
+      if (worstDefeat !== prevDefeat || pairwiseWinCount !== prevPairwiseWins) {
         currentRank = i + 1;
       }
     }
@@ -126,6 +148,7 @@ export function calculateMinimaxResults(
     results.push({
       book,
       worstDefeat,
+      pairwiseWins: pairwiseWinCount,
       rank: currentRank,
     });
   }

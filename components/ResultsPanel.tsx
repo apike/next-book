@@ -139,10 +139,12 @@ function getRankEmoji(rank: number): string {
 }
 
 function getScoreExplanation(result: RankedResult): string {
+  const pairwiseText = `${result.pairwiseWins} pairwise win${result.pairwiseWins !== 1 ? 's' : ''}`;
+
   if (result.worstDefeat <= 0) {
-    return 'Beats or ties all opponents';
+    return `Beats or ties all opponents; ${pairwiseText}`;
   }
-  return `Worst loss: ${result.worstDefeat} vote${result.worstDefeat !== 1 ? 's' : ''}`;
+  return `Worst loss: ${result.worstDefeat} vote${result.worstDefeat !== 1 ? 's' : ''}; ${pairwiseText}`;
 }
 
 /**
